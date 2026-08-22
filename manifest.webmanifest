@@ -1,0 +1,9 @@
+{
+  "name": "Curling Chaos 3D",
+  "short_name": "Curling Chaos",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#07101b",
+  "theme_color": "#07101b",
+  "description": "Arcade-curling Suomi vastaan Ruotsi"
+}

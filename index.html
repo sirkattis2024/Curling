@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="fi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Curling Chaos 3D | Final</title>
+<meta name="theme-color" content="#07101b"><meta name="description" content="Curling Chaos: nopea arcade-curling Suomi vastaan Ruotsi.">
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#07101b;font-family:system-ui,Arial,sans-serif;color:#fff}
+body{touch-action:none}
+#game{position:fixed;inset:0;width:100%;height:100%;display:block}
+.hud{position:fixed;inset:0;pointer-events:none}
+.top{position:absolute;left:10px;right:10px;top:8px;display:flex;align-items:center;gap:8px}
+.score{flex:1;background:rgba(5,16,29,.88);border:1px solid #45617e;border-radius:16px;padding:7px 10px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 5px 18px #0008}
+.team{font-weight:900;font-size:clamp(13px,3.5vw,20px)}
+.fi{color:#8fd1ff}.se{color:#ffd34d}
+.mid{text-align:center;font-weight:900;font-size:12px;line-height:1.1}
+button,.panel{pointer-events:auto;border:0;color:#fff}
+button{font:inherit;font-weight:900}
+#throw{position:absolute;right:13px;bottom:18px;width:min(190px,42vw);height:72px;border-radius:22px;background:linear-gradient(#168cff,#0752b5);font-size:clamp(18px,5vw,28px);box-shadow:0 8px 0 #043979,0 12px 24px #0008}
+#throw:active{transform:translateY(5px);box-shadow:0 3px 0 #043979}
+#brush{position:absolute;left:13px;bottom:18px;width:120px;height:62px;border-radius:18px;background:#172a40;border:2px solid #4c769e;font-size:16px}
+#brush.active{background:#9b4b00;border-color:#ffb33e}
+#chaos{position:absolute;left:13px;top:95px;width:132px;background:#111d2aee;border:1px solid #4b6075;border-radius:14px;padding:8px}
+#chaos b{color:#ff9e2c;font-size:15px}
+.bar{height:9px;background:#28394b;border-radius:9px;overflow:hidden;margin-top:5px}
+.bar i{display:block;height:100%;width:54%;background:linear-gradient(90deg,#28d17c,#ffd238,#ff4b2e)}
+#power{position:absolute;right:13px;bottom:105px;width:min(210px,48vw);background:#101d2bee;border:1px solid #4b6075;border-radius:14px;padding:9px}
+#power .row{display:flex;justify-content:space-between;align-items:center;font-size:12px}
+#power strong{font-size:22px}
+input[type=range]{width:100%;accent-color:#38a0ff}
+#angle{position:absolute;left:50%;bottom:24px;transform:translateX(-50%);background:#101d2bee;border:1px solid #4b6075;border-radius:14px;padding:7px 14px;font-weight:900;pointer-events:auto}
+#angle button{background:#23486b;border-radius:9px;width:32px;height:32px;margin:0 5px}
+#hint{position:absolute;left:50%;top:93px;transform:translateX(-50%);background:#071521d9;border:1px solid #55718d;border-radius:13px;padding:7px 12px;font-size:12px;text-align:center}
+#message{position:absolute;left:50%;top:45%;transform:translate(-50%,-50%);font-size:clamp(20px,7vw,42px);font-weight:1000;text-align:center;text-shadow:0 4px 14px #000;opacity:0;transition:.2s;white-space:nowrap}
+#mode{position:absolute;left:10px;bottom:92px;background:#101d2bee;border:1px solid #4b6075;border-radius:13px;padding:8px 11px;font-size:12px}
+#reset{position:absolute;right:10px;top:95px;border-radius:12px;background:#182c41;border:1px solid #4b6075;padding:8px 11px}
+@media(max-width:700px){#power{bottom:104px}.top{top:5px}.score{padding:6px 8px}}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="charMenu" style="position:fixed;inset:0;background:rgba(3,9,15,.97);z-index:30;display:none;align-items:center;justify-content:center;padding:18px">
+  <div style="width:min(560px,95vw);background:#0d1b2a;border:1px solid #55718d;border-radius:24px;padding:22px;text-align:center">
+    <div style="color:#72c6ff;font-weight:900;letter-spacing:2px">🇫🇮 JOUKKUEEN VALINTA</div>
+    <h2 style="font-size:32px;margin:5px 0 4px">Valitse heittäjä</h2>
+    <p style="color:#a9bac9;margin-top:0">Jokaisella hahmolla on oma erikoisliike.</p>
+    <div id="chars" style="display:grid;grid-template-columns:1fr 1fr;gap:10px"></div>
+    <button id="howto" style="width:100%;margin-top:4px;padding:11px;border-radius:13px;background:#10283b;color:#b9d7eb;border:1px solid #416887;font-weight:900">❓ MITEN PELATAAN</button>
+    <button id="startMatch" style="width:100%;margin-top:14px;padding:14px;border:0;border-radius:15px;background:#1678d8;color:#fff;font-weight:1000;font-size:18px">🥌 ALOITA OTTELU</button>
+  </div>
+</div>
+<div id="menu" style="position:fixed;inset:0;background:radial-gradient(circle at 50% 35%,#173b5b,#050b12 72%);z-index:20;display:flex;align-items:center;justify-content:center;padding:20px">
+  <div style="width:min(520px,94vw);background:#0d1b2aee;border:1px solid #55718d;border-radius:24px;padding:24px;box-shadow:0 20px 60px #000b;text-align:center">
+    <div style="font-size:13px;color:#72c6ff;font-weight:900;letter-spacing:2px">🥌 CURLING CHAOS</div>
+    <h1 style="font-size:clamp(34px,10vw,58px);margin:4px 0 8px">CHAOS CUP</h1>
+    <p style="margin:0 0 18px;color:#b7c8d8">Arcade-curling, jossa viimeinen kivi voi räjäyttää koko tilanteen.</p>
+    <button id="aiToggle" style="width:100%;padding:11px;border-radius:13px;background:#173451;color:#fff;border:1px solid #416887;font-weight:900;margin-bottom:10px">🤖 RUOTSI AI: PÄÄLLÄ</button>
+    <button class="modeBtn" data-mode="1v1">🇫🇮 1 vs 1 <small>klassinen ottelu</small></button>
+    <button class="modeBtn" data-mode="2v2">👥 2 vs 2 <small>vaihda heittäjää jokaisella kivellä</small></button>
+    <button class="modeBtn" data-mode="cup">🏆 CHAOS CUP <small>turnaus · finaaliin asti</small></button>
+  </div>
+</div>
+<style>
+.modeBtn{display:block;width:100%;margin:10px 0;padding:15px;border-radius:16px;background:#173451;color:#fff;border:1px solid #416887;font-size:19px;font-weight:1000}
+.modeBtn small{display:block;font-size:11px;color:#9db4c9;font-weight:600;margin-top:3px}
+.modeBtn:active{transform:scale(.98);background:#22517a}
+.aiStone{animation:aiPulse .8s ease-in-out infinite alternate}
+@keyframes aiPulse{from{filter:brightness(1)}to{filter:brightness(1.5)}}
+.charCard{padding:12px;border-radius:15px;background:#132a3f;border:2px solid #416887;color:#fff;text-align:left;min-height:115px}
+.charCard:active{transform:scale(.98)}
+#playerTag{position:absolute;left:50%;top:125px;transform:translateX(-50%);background:#0d1d2eee;border:1px solid #53718d;border-radius:12px;padding:7px 12px;font-weight:900;font-size:12px;white-space:nowrap}
+</style>
+<div class="hud">
+  <div class="top">
+    <div class="score">
+      <span class="team fi">🇫🇮 SUOMI <b id="sfi">0</b></span>
+      <span class="mid">PÄÄ <b id="end">1</b><br><small id="stones">6 / 6</small></span>
+      <span class="team se">🇸🇪 RUOTSI <b id="sse">0</b></span>
+    </div>
+  </div>
+  <div id="chaos"><b>🔥 CHAOS <span id="chaosVal">54%</span></b><div class="bar"><i id="chaosBar"></i></div></div>
+  <button id="reset">↻ Uusi pää</button>
+  <div id="hint">VEDÄ SORMELLA ↔ TÄHTÄÄ · LIUKUSÄÄDIN = VOIMA</div>
+  <div id="stats" style="position:absolute;left:13px;top:190px;background:#0d1d2eee;border:1px solid #4b6075;border-radius:12px;padding:7px 9px;font-size:10px;display:none">
+    🏆 PARAS <b id="bestScore">0</b> · 🎯 <b id="shots">0</b> HEITTOA
+  </div>
+  <div id="message"></div>
+<div id="shotInfo" style="position:absolute;left:50%;top:54%;transform:translate(-50%,-50%);background:#081521e8;border:1px solid #63809a;border-radius:16px;padding:10px 15px;font-weight:1000;font-size:13px;opacity:0;transition:.2s;pointer-events:none;text-align:center"></div>
+  <div id="power"><div class="row"><span>VOIMA</span><strong id="powerVal">75%</strong></div><input id="powerRange" type="range" min="35" max="100" value="75"></div>
+  <div id="angle"><button id="left">◀</button><span>KULMA <b id="angleVal">0.0°</b></span><button id="right">▶</button></div>
+  <button id="brush">🧹 HARJAUS</button>
+<button id="bonk" style="position:absolute;left:13px;bottom:88px;width:120px;height:58px;border-radius:18px;background:linear-gradient(#f39b20,#a84d00);border:2px solid #ffc45a;font-size:16px;box-shadow:0 5px 0 #6b2e00">💥 BONK! <small style="display:block;font-size:9px">EXTRA KAOS</small></button>
+  <div id="mode">🏆 1 vs 1 · CHAOS CUP</div>
+  <div id="releaseBadge" style="position:absolute;right:13px;bottom:18px;background:#10283bee;border:1px solid #4b7697;border-radius:12px;padding:7px 10px;font-size:10px;font-weight:900;color:#8ed0ff">FINAL RELEASE · v10</div>
+  <div id="aiTag" style="position:absolute;right:13px;top:125px;background:#0d1d2eee;border:1px solid #876d3f;border-radius:12px;padding:7px 12px;font-weight:900;font-size:12px;display:none">🤖 RUOTSI AI: VALMISTAUTUU</div>
+  <div id="playerTag">HEITTÄJÄ 1 · 🇫🇮</div>
+  <button id="throw">🥌 HEITÄ!</button>
+</div>
+
+<script>
+const c=document.getElementById('game'),ctx=c.getContext('2d');
+let W,H,DPR=1, stones=[], playerStones=6, opponentStones=6, turn='fi';
+let angle=0,power=75,chaos=54,brush=false,drag=false,dragX=0,shot=false,fiScore=0,seScore=0,endNo=1;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function resize(){DPR=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;c.width=W*DPR;c.height=H*DPR;c.style.width=W+'px';c.style.height=H+'px';ctx.setTransform(DPR,0,0,DPR,0,0)}
+addEventListener('resize',resize);resize();
+
+function rink(){
+  const cx=W/2, top=H*.12, bot=H*.94, half=Math.min(W*.39,210);
+  let g=ctx.createLinearGradient(0,top,0,bot);g.addColorStop(0,'#b8d9e8');g.addColorStop(.5,'#eaf8ff');g.addColorStop(1,'#9cc7da');
+  ctx.fillStyle='#08121d';ctx.fillRect(0,0,W,H);
+  ctx.fillStyle=g;ctx.beginPath();ctx.roundRect(cx-half,top,half*2,bot-top,22);ctx.fill();
+  ctx.strokeStyle='#4f8daf';ctx.lineWidth=3;ctx.stroke();
+  ctx.strokeStyle='#d84d57';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(cx,top);ctx.lineTo(cx,bot);ctx.stroke();
+  ctx.strokeStyle='#5b91ae';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(cx-half,top+18);ctx.lineTo(cx+half,top+18);ctx.moveTo(cx-half,bot-18);ctx.lineTo(cx+half,bot-18);ctx.stroke();
+  // houses
+  const hy=top+115;
+  for(let r of [42,30,18,8]){ctx.beginPath();ctx.arc(cx,hy,r,0,Math.PI*2);ctx.fillStyle=r==42?'#fff':r==30?'#3e82b4':r==18?'#fff':'#d74b55';ctx.fill();ctx.strokeStyle='#6c8da2';ctx.stroke()}
+  // perspective boards
+  ctx.fillStyle='#102438';ctx.fillRect(cx-half-14,top,14,bot-top);ctx.fillRect(cx+half,top,14,bot-top);
+  ctx.save();ctx.globalAlpha=.22;ctx.fillStyle='#fff';for(let y=top+25;y<bot;y+=42)ctx.fillRect(cx-half+8,y,half*2-16,2);ctx.restore();
+}
+function drawCrowd(){
+  ctx.fillStyle='#0d2235';ctx.fillRect(0,0,W,H*.12);
+  for(let i=0;i<18;i++){let x=i*W/18+8,y=30+(i%3)*11;ctx.fillStyle=i%2?'#f0c39d':'#d8e7ef';ctx.beginPath();ctx.arc(x,y,7,0,7);ctx.fill()}
+  ctx.fillStyle='#f3f7ff';ctx.font='900 12px system-ui';ctx.textAlign='center';ctx.fillText('TORILLA TAVATAAN!',W*.18,24);
+  ctx.fillStyle='#ffd84f';ctx.fillText('HÄRREGUD!',W*.82,24);
+}
+function house(){
+  const cx=W/2, y=H*.12+115;
+  ctx.fillStyle='#111c29cc';ctx.fillRect(cx-60,y+52,120,25);
+  ctx.fillStyle='#fff';ctx.font='900 11px system-ui';ctx.textAlign='center';ctx.fillText('38.4 m',cx,y+69);
+}
+function drawPlayer(){
+  const x=W/2-92,y=H*.86;
+  ctx.save();ctx.translate(x,y);
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.roundRect(-28,-35,58,62,14);ctx.fill();
+  ctx.fillStyle='#1972bd';ctx.fillRect(-28,-5,58,13);
+  ctx.fillStyle='#1972bd';ctx.font='900 10px system-ui';ctx.textAlign='center';ctx.fillText('SUOMI',1,-11);
+  ctx.fillStyle='#d6edf8';ctx.beginPath();ctx.arc(1,-42,22,0,7);ctx.fill();
+  ctx.fillStyle='#2878ba';ctx.fillRect(-20,-55,40,10);
+  ctx.fillStyle='#fff';ctx.font='900 8px system-ui';ctx.fillText('SUOMI',1,-47);
+  ctx.strokeStyle='#17344b';ctx.lineWidth=9;ctx.beginPath();ctx.moveTo(-14,25);ctx.lineTo(-32,43);ctx.moveTo(15,25);ctx.lineTo(35,43);ctx.stroke();
+  ctx.restore();
+}
+function drawOpponent(){
+  const x=W/2+78,y=H*.19;
+  ctx.save();ctx.translate(x,y);
+  ctx.fillStyle='#ffd64a';ctx.beginPath();ctx.roundRect(-24,-30,48,55,12);ctx.fill();
+  ctx.fillStyle='#234d8b';ctx.fillRect(-24,-5,48,11);
+  ctx.fillStyle='#f1c7a7';ctx.beginPath();ctx.arc(0,-35,18,0,7);ctx.fill();
+  ctx.fillStyle='#234d8b';ctx.fillRect(-18,-47,36,9);
+  ctx.strokeStyle='#d6a44c';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(26,4);ctx.lineTo(47,32);ctx.stroke();
+  ctx.fillStyle='#fff';ctx.font='900 13px system-ui';ctx.textAlign='center';ctx.fillText('HÄRREGUD!',0,48);
+  ctx.restore();
+}
+function drawAim(){
+  if(shot)return;
+  const cx=W/2, sy=H*.82, targetY=H*.12+115;
+  const bend=angle*1.6;
+  ctx.save();ctx.setLineDash([8,8]);ctx.strokeStyle='#ff4556';ctx.lineWidth=3;
+  ctx.beginPath();ctx.moveTo(cx,sy);ctx.quadraticCurveTo(cx+bend,(sy+targetY)/2,cx+bend*.45,targetY);ctx.stroke();ctx.setLineDash([]);
+  ctx.beginPath();ctx.arc(cx+bend*.45,targetY,13,0,7);ctx.strokeStyle='#ff4556';ctx.stroke();
+  ctx.restore();
+}
+function stoneDraw(s){
+  ctx.save();ctx.translate(s.x,s.y);ctx.rotate(s.rot||0);
+  ctx.fillStyle='rgba(0,0,0,.22)';ctx.beginPath();ctx.ellipse(2,5,s.r*1.05,s.r*.55,0,0,7);ctx.fill();
+  ctx.fillStyle=s.color;ctx.beginPath();ctx.arc(0,0,s.r,0,7);ctx.fill();
+  ctx.fillStyle='#e9edf2';ctx.beginPath();ctx.arc(0,-2,s.r*.58,0,7);ctx.fill();
+  ctx.fillStyle=s.color;ctx.beginPath();ctx.arc(0,-5,s.r*.3,0,7);ctx.fill();
+  ctx.restore();
+}
+function render(){
+  rink();drawCrowd();house();
+  stones.forEach(stoneDraw);
+  drawAim();drawPlayer();drawOpponent();
+  if(brush && shot){ctx.save();ctx.strokeStyle='#fff';ctx.lineWidth=3;ctx.globalAlpha=.75;for(let i=0;i<5;i++){let x=stones[0]?.x||W/2;let y=(stones[0]?.y||H*.5)+i*4;ctx.beginPath();ctx.moveTo(x-24,y);ctx.lineTo(x+24,y);ctx.stroke()}ctx.restore()}
+}
+function msg(t){const m=document.getElementById('message');m.textContent=t;m.style.opacity=1;clearTimeout(window.mt);window.mt=setTimeout(()=>m.style.opacity=0,1100)}
+function updateHud(){document.getElementById('sfi').textContent=fiScore;document.getElementById('sse').textContent=seScore;document.getElementById('end').textContent=endNo;document.getElementById('stones').textContent=playerStones+' / '+opponentStones;document.getElementById('chaosVal').textContent=chaos+'%';document.getElementById('chaosBar').style.width=chaos+'%';document.getElementById('powerVal').textContent=power+'%';document.getElementById('angleVal').textContent=angle.toFixed(1)+'°'}
+
+let bonkArmed=false, bonkUsed=false;
+const bonkBtn=document.getElementById('bonk');
+bonkBtn.onclick=()=>{
+  if(shot || bonkUsed || stones.length<1) return;
+  bonkArmed=!bonkArmed;
+  bonkBtn.style.filter=bonkArmed?'brightness(1.35)':'none';
+  bonkBtn.style.transform=bonkArmed?'scale(1.04)':'scale(1)';
+  msg(bonkArmed?'💥 BONK LADATTU!':'BONK PERUTTU');
+};
+function showShotInfo(text){
+  const el=document.getElementById('shotInfo');
+  el.innerHTML=text;el.style.opacity=1;
+  clearTimeout(window.si);window.si=setTimeout(()=>el.style.opacity=0,1500);
+}
+
+
+let aiThinking=false, aiEnabled=true, aiLevel='tactical';
+function aiSay(t){
+  const el=document.getElementById('aiTag');
+  el.style.display='block';el.textContent='🤖 RUOTSI AI: '+t;
+  clearTimeout(window.aiT);window.aiT=setTimeout(()=>el.style.display='none',1400);
+}
+function aiChooseShot(){
+  if(aiThinking || opponentStones<=0 || shot)return;
+  aiThinking=true;
+  aiSay('MIETTII TAKTIIKKAA…');
+  setTimeout(()=>{
+    opponentStones--;
+    const targetY=H*.12+115;
+    // Tactical AI: if Finland has stones in/near the house, aim for a takeout.
+    const fiNear=stones.filter(s=>s.color==='#d74752' && Math.abs(s.y-targetY)<65);
+    let x=W/2;
+    let powerAI=65+Math.random()*22;
+    if(fiNear.length){
+      const target=fiNear[0];
+      x=target.x;
+      powerAI=82+Math.random()*15;
+      aiSay('💥 TAKEOUT!');
+    }else{
+      x=W/2+(Math.random()*50-25);
+      aiSay('🎯 YRITTÄÄ KESKELLE');
+    }
+    const s={x:W/2,y:targetY-150,r:13,color:'#e8bf2d',vx:(x-W/2)/55,vy:powerAI/13,rot:0,ai:true};
+    stones.push(s);
+    let last=performance.now();
+    function animAI(now){
+      const dt=Math.min((now-last)/16.7,2);last=now;
+      s.x+=s.vx*dt*4;s.y+=s.vy*dt*4;s.vy+=.055*dt;
+      s.vx*=.994;s.vy*=.994;s.rot+=.035*dt;
+      for(const o of stones){
+        if(o===s)continue;
+        let dx=s.x-o.x,dy=s.y-o.y,d=Math.hypot(dx,dy),min=s.r+o.r;
+        if(d<min&&d>0){
+          let nx=dx/d,ny=dy/d;
+          s.vx+=nx*(s.ai&&o.color==='#d74752'?2.0:1.0);
+          s.vy+=ny*(s.ai&&o.color==='#d74752'?2.0:1.0);
+          o.vx=(o.vx||0)-nx*(s.ai&&o.color==='#d74752'?2.8:.5);
+          o.vy=(o.vy||0)-ny*(s.ai&&o.color==='#d74752'?2.8:.5);
+          chaos=clamp(chaos+4,0,100);updateHud();
+        }
+      }
+      if(s.y>H*.82 || Math.abs(s.vy)<.25){
+        aiThinking=false;
+        if(s.y<targetY+70 && Math.abs(s.x-W/2)<45){seScore+=1;msg('🇸🇪 RUOTSI +1');}
+        updateHud();render();
+        return;
+      }
+      render();requestAnimationFrame(animAI);
+    }
+    requestAnimationFrame(animAI);
+  },850);
+}
+function maybeAI(){
+  if(aiEnabled && gameMode!=='2v2' && opponentStones>0) setTimeout(aiChooseShot,650);
+}
+
+function throwStone(){
+  if(shot||playerStones<=0)return;
+  playerStones--;shot=true;chaos=clamp(chaos+Math.round(power/18),0,100);updateHud();
+  const ch=characters[selectedChar];
+  const turbo=ch.skill==='TURBO'?1.18:1;
+  const s={x:W/2,y:H*.82,r:13,color:'#d74752',vx:(angle/28),vy:-(power/13)*turbo,rot:0,bonk:bonkArmed};
+  if(bonkArmed){chaos=clamp(chaos+14,0,100);bonkUsed=true;bonkArmed=false;bonkBtn.style.filter='none';}
+
+  stones.push(s);
+  let last=performance.now();
+  function anim(now){
+    const dt=Math.min((now-last)/16.7,2);last=now;
+    s.x+=s.vx*dt*4;s.y+=s.vy*dt*4;s.vy+=.055*dt;
+    s.vx*=brush?.998:.992;s.vy*=brush?.998:.992;s.rot+=.04*dt;
+    // simple collisions
+    for(const o of stones){if(o===s)continue;let dx=s.x-o.x,dy=s.y-o.y,d=Math.hypot(dx,dy),min=s.r+o.r;if(d<min&&d>0){let nx=dx/d,ny=dy/d;s.vx+=nx*1.2;s.vy+=ny*1.2;o.vx=(o.vx||0)-nx*.6;o.vy=(o.vy||0)-ny*.6;chaos=clamp(chaos+3,0,100);updateHud()}}
+    if(s.y>H*.13+100 && Math.hypot(s.vx,s.vy)<.35 || s.y<70 || s.y>H*.94){finishShot(s);return}
+    render();requestAnimationFrame(anim)
+  }
+  requestAnimationFrame(anim)
+}
+function finishShot(s){
+  shot=false;
+  const targetY=H*.12+115,d=Math.hypot(s.x-W/2,s.y-targetY);
+  if(d<18){fiScore+=2;msg('🎯 KESKELLE! +2');showShotInfo('TÄYDELLINEN HEITTO · +2');}
+  else if(d<38){fiScore+=1;msg('🥌 HYVÄ! +1');showShotInfo('KIVI TALOSSA · +1');}
+  else if(s.y<targetY+70){msg('💨 LÄHELLÄ!');showShotInfo('MELKEIN! Harjoittele voimaa.');}
+  else msg('🧊 LIAN PITKÄ!');
+  chaos=clamp(chaos+(Math.random()*9|0)-3,0,100);
+  updateHud();
+  if(playerStones===0)setTimeout(endRound,900);
+  else maybeAI();
+  render();
+}
+function endRound(){
+  endNo++;
+  playerStones=6;opponentStones=6;stones=[];
+  // light opponent turn
+  const y=H*.12+115+(Math.random()*35-10),x=W/2+(Math.random()*70-35);
+  stones.push({x,y,r:13,color:'#e8bf2d',vx:0,vy:0,rot:0});
+  seScore += Math.random()<.35?1:0;
+  if(endNo>8){msg(fiScore>=seScore?'🏆 SUOMI VOITTAA!':'🇸🇪 RUOTSI VOITTAA!');endNo=1;fiScore=0;seScore=0}
+  
+let gameMode='1v1', thrower=1, cupRound=1;
+const menu=document.getElementById('menu');
+document.getElementById('aiToggle').onclick=()=>{
+  aiEnabled=!aiEnabled;
+  document.getElementById('aiToggle').textContent='🤖 RUOTSI AI: '+(aiEnabled?'PÄÄLLÄ':'POIS');
+};
+document.getElementById('howto').onclick=()=>{
+  alert('1) Valitse pelimuoto.\\n2) Valitse hahmo.\\n3) Vedä jäällä vasemmalle/oikealle tähtäämistä varten.\\n4) Säädä VOIMA.\\n5) HEITÄ.\\n6) Pidä HARJAUS painettuna heiton aikana.\\n7) BONK! tekee voimakkaan takeoutin.\\n\\nTavoite: kerää enemmän pisteitä kuin Ruotsi.');
+};
+document.querySelectorAll('.modeBtn').forEach(b=>b.onclick=()=>{
+  gameMode=b.dataset.mode;
+  menu.style.display='none';
+  document.getElementById('charMenu').style.display='flex';
+  thrower=1; cupRound=1;
+  document.getElementById('mode').textContent =
+    gameMode==='2v2' ? '👥 2 vs 2 · CHAOS CUP' :
+    gameMode==='cup' ? '🏆 CHAOS CUP · KARSINTA '+cupRound : '🥌 1 vs 1 · CHAOS CUP';
+  updatePlayerTag();
+});
+
+const characters=[
+ {name:'Jää-Jussi',emoji:'🧊',power:5,skill:'TARKKA',desc:'Pieni hajonta, varma käsi.'},
+ {name:'Mörkö-Mikko',emoji:'👹',power:10,skill:'BONK+',desc:'BONK antaa enemmän voimaa.'},
+ {name:'Harja-Harri',emoji:'🧹',power:3,skill:'HARJA',desc:'Harjaus hidastaa kiven vauhdin menetystä.'},
+ {name:'Turbo-Tiina',emoji:'⚡',power:8,skill:'TURBO',desc:'Kova lähtönopeus, vaikeampi hallita.'}
+];
+let selectedChar=0;
+const charsEl=document.getElementById('chars');
+charsEl.innerHTML=characters.map((c,i)=>`<button class="charCard" data-i="${i}">
+  <div style="font-size:38px">${c.emoji}</div><b>${c.name}</b>
+  <div style="color:#72c6ff;font-size:11px;margin:3px">${c.skill}</div>
+  <small style="color:#9db0c1">${c.desc}</small>
+</button>`).join('');
+document.querySelectorAll('.charCard').forEach(b=>b.onclick=()=>{
+  selectedChar=+b.dataset.i;
+  document.querySelectorAll('.charCard').forEach(x=>x.style.borderColor='#416887');
+  b.style.borderColor='#45b7ff';
+});
+document.querySelectorAll('.charCard')[0].style.borderColor='#45b7ff';
+document.getElementById('startMatch').onclick=()=>{
+  document.getElementById('charMenu').style.display='none';
+  updatePlayerTag();
+  msg(characters[selectedChar].emoji+' '+characters[selectedChar].name+' KEHÄÄN!');
+};
+
+function updatePlayerTag(){
+  const tag=document.getElementById('playerTag');
+  tag.textContent = (gameMode==='2v2' ? 'HEITTÄJÄ '+thrower : 'HEITTÄJÄ')
+    +' · '+characters[selectedChar].emoji+' '+characters[selectedChar].name;
+}
+const oldFinishShot=finishShot;
+finishShot=function(s){
+  oldFinishShot(s);
+  if(gameMode==='2v2'){
+    thrower=thrower===1?2:1;
+    updatePlayerTag();
+    msg('👥 HEITTÄJÄ '+thrower);
+  }
+};
+const oldEndRound=endRound;
+endRound=function(){
+  oldEndRound();
+  if(gameMode==='cup' && endNo===1){
+    cupRound++;
+    if(cupRound<=3){
+      document.getElementById('mode').textContent='🏆 CHAOS CUP · KARSINTA '+cupRound;
+      msg(cupRound===3?'🔥 FINAALI!':'🏆 SEURAAVA KIERROS!');
+    }
+  }
+};
+document.getElementById('reset').onclick=()=>{
+  menu.style.display='flex';
+  document.getElementById('charMenu').style.display='none';
+  playerStones=6;opponentStones=6;stones=[];shot=false;angle=0;power=75;chaos=54;bonkArmed=false;bonkUsed=false;bonkBtn.style.filter='none';aiThinking=false;document.getElementById('aiTag').style.display='none';
+  updateHud();render();
+  if(gameMode!=='2v2') maybeAI();
+};
+
+const LS_KEY='curlingChaosFinalStats';
+let stats=JSON.parse(localStorage.getItem(LS_KEY)||'{"best":0,"shots":0}');
+function saveStats(){
+  stats.shots++;
+  if(fiScore>stats.best)stats.best=fiScore;
+  localStorage.setItem(LS_KEY,JSON.stringify(stats));
+  document.getElementById('bestScore').textContent=stats.best;
+  document.getElementById('shots').textContent=stats.shots;
+}
+function finalFeedback(){
+  if(chaos>=90) showShotInfo('🔥 CHAOS MAX! KOKO HALLI SEKOAA!');
+  if(chaos>=100) chaos=72;
+}
+const originalFinishShot=finishShot;
+finishShot=function(s){
+  originalFinishShot(s);
+  saveStats();
+  finalFeedback();
+};
+document.getElementById('stats').style.display='block';
+document.getElementById('bestScore').textContent=stats.best;
+document.getElementById('shots').textContent=stats.shots;
+
+updatePlayerTag();
+updateHud();render();
+
+}
+document.getElementById('powerRange').oninput=e=>{power=+e.target.value;updateHud()}
+document.getElementById('throw').onclick=throwStone;
+document.getElementById('brush').onpointerdown=()=>{brush=true;document.getElementById('brush').classList.add('active')}
+addEventListener('pointerup',()=>{brush=false;document.getElementById('brush').classList.remove('active')});
+document.getElementById('left').onclick=()=>{angle=clamp(angle-0.5,-18,18);updateHud();render()}
+document.getElementById('right').onclick=()=>{angle=clamp(angle+0.5,-18,18);updateHud();render()}
+document.getElementById('reset').onclick=()=>{playerStones=6;opponentStones=6;stones=[];shot=false;angle=0;power=75;chaos=54;bonkArmed=false;bonkUsed=false;bonkBtn.style.filter='none';aiThinking=false;document.getElementById('aiTag').style.display='none';updateHud();render()}
+c.addEventListener('pointerdown',e=>{if(shot)return;drag=true;dragX=e.clientX})
+c.addEventListener('pointermove',e=>{if(!drag||shot)return;let dx=e.clientX-dragX;angle=clamp(dx/7,-18,18);updateHud();render()})
+c.addEventListener('pointerup',()=>drag=false);
+updateHud();render();
+</script>
+</body>
+</html>
